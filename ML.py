@@ -23,6 +23,53 @@ def standardize(data):
 
     return scaled_data
 
+def encode_label(Y_cat):
+    '''
+    encode categorical to numerical in the same dimension
+    '''
+    le = LabelEncoder()
+    le.fit(np.unique(Y_cat.ravel()))
+    label_num = le.transform(Y_cat.ravel()).reshape(Y_cat.shape)
+    return label_num
+
+def decode_label(Y_num, Y_key):
+    '''
+    decode numeric to categorical given a key
+    key is a list whose index corresponds to the category
+    '''
+    le = LabelEncoder()
+    le.fit(np.unique(Y_key.ravel()))
+    Y_cat = le.inverse_transform(Y_num.ravel()).reshape(Y_num.shape)
+    return Y_cat
+
+def encode_one_hot(Y, C = None):
+    '''
+    encode output vector Y of shape (1, m) to a matrix
+    of dimension (C, m) where C is the number of classes
+    '''
+    Y_num = np.array(encode_label(Y))
+
+    if C is None:
+        C = len(np.unique(Y_num.ravel()))
+    else:
+        C = C
+
+    Y_mat = np.eye(C)[Y_num.reshape(-1)].T
+
+    return Y_mat
+
+def decode_one_hot(Y_mat, Y_key=None):
+    '''
+    encode output vector Y of shape (1, m) to a matrix
+    of dimension (C, m) where C is the number of classes
+    '''
+    Y = np.argmax(Y_mat, axis = 0)
+
+    if Y_key is not None:
+        Y = decode_label(Y, Y_key)
+
+    return Y
+
 
 def glm(data, label, cv=5):
     '''
@@ -106,13 +153,6 @@ def pca_plotly(data, label, dimension=2, marker_size = 12):
     plot(pca_plot, filename='pca_dim'+str(dimension)+'.html')
 
 
-def encode(label):
-    le = LabelEncoder()
-    le.fit(np.unique(label))
-    Z = le.transform(label)
-    return Z
-
-
 
 
 def pca_scatter(model, data, label, pixel_density=2):
@@ -158,7 +198,7 @@ def pca_scatter(model, data, label, pixel_density=2):
 
 
 # Check Neural Network's Decision Boundary using PCA
-def pca_contour(model, data, label, pixel_density=2):
+def pca_contour(model, data, label, pixel_density=2, zoom=1):
 
     '''
     Model must be fit by the standardized data
@@ -166,7 +206,6 @@ def pca_contour(model, data, label, pixel_density=2):
     '''
 
     print("Assuming that model is fit with standardized data.")
-    print("Model must give the same output as the label.")
 
     X, components = pca_transform(data, dimension=2)
 
@@ -178,8 +217,8 @@ def pca_contour(model, data, label, pixel_density=2):
     n = pixel_density
 
     for i in range(data.shape[1]):
-        xmin = data[:, i].min()-1
-        xmax = data[:, i].max()+1
+        xmin = data[:, i].min()-zoom
+        xmax = data[:, i].max()+zoom
         L.append(np.linspace(xmin, xmax, n))
 
     # Generate a grid of points
@@ -203,8 +242,9 @@ def pca_contour(model, data, label, pixel_density=2):
     cp = plt.contourf(xx, yy, Z, cmap=plt.cm.coolwarm, alpha=0.2)
     plt.colorbar(cp)
 
-    plt.ylabel('x2')
-    plt.xlabel('x1')
+    plt.ylabel('Second principal component')
+    plt.xlabel('First principal component')
+    plt.title('Principal component Plot')
 
     plt.scatter(X[:, 0], X[:, 1],  c=np.ravel(label), cmap=plt.cm.Spectral)
     plt.show()
